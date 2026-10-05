@@ -87,3 +87,7 @@ make live   # also hits the real JokeAPI
 The LLM tests run against `httptest` servers that pretend to be the model.
 Stage 2's fake replays a scripted conversation (tool call → no match → retry →
 answer), so the loop logic is tested without loading a model.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
