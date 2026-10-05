@@ -1,6 +1,6 @@
 // Command jokes is a REPL for trying each stage of the agent lab.
 //
-//	go run ./cmd/jokes -stage 2 -trace
+//	go run ./cmd/jokes -stage 3 -trace
 package main
 
 import (
@@ -13,11 +13,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AriT93/agent-lab/internal/dadjoke"
 	"github.com/AriT93/agent-lab/internal/jokeapi"
 	"github.com/AriT93/agent-lab/internal/ollama"
 	"github.com/AriT93/agent-lab/internal/stage0"
 	"github.com/AriT93/agent-lab/internal/stage1"
 	"github.com/AriT93/agent-lab/internal/stage2"
+	"github.com/AriT93/agent-lab/internal/stage3"
 	"github.com/AriT93/agent-lab/internal/trace"
 )
 
@@ -31,12 +33,12 @@ type Interpreter interface {
 type respondFunc func(ctx context.Context, text string) (string, error)
 
 func main() {
-	stage := flag.Int("stage", 2, "0 = keywords, 1 = structured output, 2 = tool-calling agent")
-	backend := flag.String("backend", "ollama", `LLM backend for stage 1: "ollama" or "claude" (stage 2 is ollama only)`)
+	stage := flag.Int("stage", 3, "0 = keywords, 1 = structured output, 2 = tool-calling agent, 3 = multi-tool agent with memory")
+	backend := flag.String("backend", "ollama", `LLM backend for stage 1: "ollama" or "claude" (stages 2–3 are ollama only)`)
 	model := flag.String("model", "", "model name (default: "+ollama.DefaultModel+" or "+stage1.DefaultClaudeModel+")")
 	numCtx := flag.Int("ctx", 8192, "ollama: context window in tokens; bigger costs memory")
 	keepAlive := flag.String("keep-alive", "2m", `ollama: how long the model stays loaded when idle ("0s" unloads after each call)`)
-	think := flag.Bool("think", false, "stage 2: let the model reason before acting (slower, often smarter)")
+	think := flag.Bool("think", false, "stages 2–3: let the model reason before acting (slower, often smarter)")
 	showTrace := flag.Bool("trace", false, "print each step: prompts, model output, tool calls, API requests")
 	flag.Parse()
 
@@ -51,7 +53,8 @@ func main() {
 	if *model != "" {
 		llm.Model = *model
 	}
-	usesOllama := *stage == 2 || (*stage == 1 && *backend == "ollama")
+	usesOllama := *stage >= 2 || (*stage == 1 && *backend == "ollama")
+	var reset func() // stages with memory can forget the conversation
 
 	var respond respondFunc
 	switch {
@@ -70,6 +73,10 @@ func main() {
 		a := stage2.New(llm, jokes)
 		a.Trace, a.Think = tr, *think
 		respond = a.Respond
+	case *stage == 3:
+		a := stage3.New(llm, jokes, dadjoke.New())
+		a.Trace, a.Think = tr, *think
+		respond, reset = a.Respond, a.Reset
 	default:
 		fmt.Fprintf(os.Stderr, "unsupported -stage %d / -backend %q\n", *stage, *backend)
 		os.Exit(2)
@@ -99,6 +106,9 @@ func main() {
 		label += fmt.Sprintf(" · %s · ctx %d · keep-alive %s", llm.Model, llm.NumCtx, llm.KeepAlive)
 	}
 	fmt.Printf("agent-lab %s\nAsk for a joke; blank line or Ctrl-D to quit.\n", label)
+	if reset != nil {
+		fmt.Println("This stage remembers the conversation; /reset forgets it.")
+	}
 
 	in := bufio.NewScanner(os.Stdin)
 	for {
@@ -109,6 +119,13 @@ func main() {
 		text := strings.TrimSpace(in.Text())
 		if text == "" || text == "quit" || text == "exit" {
 			break
+		}
+		if text == "/reset" {
+			if reset != nil {
+				reset()
+				fmt.Println("(conversation forgotten)")
+			}
+			continue
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)

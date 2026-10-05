@@ -16,7 +16,8 @@ Runs on a local model through [Ollama](https://ollama.com); no API key needed.
 
 ```bash
 ollama pull qwen3.5:9b-mlx          # default model (~9 GB in memory)
-make run                            # stage 2 agent with tracing on
+make run                            # stage 3 agent with tracing on
+go run ./cmd/jokes -stage 2 -trace  # single-tool agent
 go run ./cmd/jokes -stage 1 -trace  # structured output
 go run ./cmd/jokes -stage 0 -trace  # keyword baseline, no LLM
 ```
@@ -48,7 +49,8 @@ JokeAPI URL) to stderr. Most of the learning is in reading that output.
 | 0 | Baseline: keyword matching, no LLM | `internal/stage0` | ✅ |
 | 1 | One LLM call with **structured output** (JSON schema); Ollama or Claude backend | `internal/stage1` | ✅ |
 | 2 | **Tool calling** and a hand-written agent loop | `internal/stage2` | ✅ |
-| 3 | Multiple tools + conversation memory; same thing again in langchaingo for comparison | `internal/stage3` | next |
+| 3 | **Multiple tools**, **conversation memory**, context trimming | `internal/stage3` | ✅ |
+| 3b | Stage 3 again in langchaingo, to see what a framework hides | `internal/stage3lc` | next |
 | 4 | **MCP**: expose the joke client as an MCP server (usable from Claude Code) | `cmd/jokes-mcp` | |
 | 5 | **Evals**: score each stage against a table of prompts → expected requests | `evals/` | |
 | later | Provider switching (Claude / OpenAI / Ollama) behind one interface | | |
@@ -63,6 +65,13 @@ JokeAPI URL) to stderr. Most of the learning is in reading that output.
   Stage 2's agent sees the "no matching joke" tool result and retries
   (`Cubs` → `Chicago` → no filter) while keeping the blacklist.
 - Run stage 2 with and without `-think` and compare the steps it takes.
+- In stage 3, hold a conversation: `a joke about dogs`, `another one`,
+  `explain that one`, `from now on nothing political. a programming joke`.
+  Watch which tool it picks, when it skips tools entirely, and the
+  "turns in memory" count. `/reset` forgets everything.
+- Run stage 3 with `-ctx 2048` to force history trimming early, then check
+  whether a restriction from an early turn survives. (Often it doesn't; that's
+  the lesson.)
 - Change a system prompt or `jokeapi.Schema()` and watch the trace.
 
 ## Layout
@@ -70,17 +79,19 @@ JokeAPI URL) to stderr. Most of the learning is in reading that output.
 ```
 cmd/jokes/          REPL; picks a stage with -stage
 internal/jokeapi/   typed JokeAPI client (no NLP) + the Request schema
+internal/dadjoke/   icanhazdadjoke.com client (second joke source)
 internal/ollama/    raw-HTTP Ollama chat client with memory limits
 internal/stage0/    keyword interpreter
 internal/stage1/    structured-output interpreter (ollama.go, claude.go)
 internal/stage2/    tool-calling agent loop
+internal/stage3/    multi-tool agent with memory (tools.go: the tool registry)
 internal/trace/     step printer used by -trace
 ```
 
 ## Tests
 
 ```bash
-make test   # unit tests; fakes for JokeAPI, Ollama and Claude, no network
+make test   # unit tests; fakes for every API and model, no network
 make live   # also hits the real JokeAPI
 ```
 

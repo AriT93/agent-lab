@@ -13,7 +13,7 @@ vet:
 	go vet ./...
 
 run:
-	go run ./cmd/jokes -stage 2 -trace
+	go run ./cmd/jokes -stage 3 -trace
 
 clean:
 	rm -rf bin
