@@ -51,6 +51,9 @@ type Agent struct {
 	MaxTurns int  // user messages kept in history
 	Think    bool // let the model reason before acting
 
+	// OnTool, if set, sees every tool call and its result (used by evals).
+	OnTool func(name string, args json.RawMessage, result string)
+
 	tools   map[string]Tool
 	defs    []ollama.Tool
 	seen    seenJokes
@@ -99,6 +102,9 @@ func (a *Agent) Respond(ctx context.Context, text string) (string, error) {
 		for _, call := range msg.ToolCalls {
 			result := a.run(ctx, call)
 			a.Trace.Step(fmt.Sprintf("step %d: %s result", step, call.Function.Name), result)
+			if a.OnTool != nil {
+				a.OnTool(call.Function.Name, call.Function.Arguments, result)
+			}
 			a.history = append(a.history, ollama.Message{Role: "tool", ToolName: call.Function.Name, Content: result})
 		}
 	}
