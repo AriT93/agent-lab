@@ -42,6 +42,13 @@ class WebTest < Minitest::Test
     assert_equal 204, last_response.status
   end
 
+  def test_healthz_is_ok_and_starts_no_conversation
+    before = AgentLab::Web::SESSIONS.size
+    get "/healthz"
+    assert_equal 200, last_response.status
+    assert_equal before, AgentLab::Web::SESSIONS.size
+  end
+
   def test_index_sets_cookie
     get "/"
     assert_equal 200, last_response.status

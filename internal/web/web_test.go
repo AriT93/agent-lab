@@ -130,3 +130,18 @@ func cookieJar(string) (*http.Client, error) {
 	jar, err := cookiejar.New(nil)
 	return &http.Client{Jar: jar}, err
 }
+
+func TestHealthz(t *testing.T) {
+	app := testServer(t)
+	res, err := http.Get(app.URL + "/healthz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		t.Errorf("status = %d", res.StatusCode)
+	}
+	if len(res.Cookies()) != 0 {
+		t.Error("health checks must not start a session")
+	}
+}

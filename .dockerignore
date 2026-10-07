@@ -1,0 +1,13 @@
+.git
+.cache
+docs
+*.pdf
+*.pptx
+bin
+**/.venv
+**/__pycache__
+**/.pytest_cache
+python/.langgraph_api
+python/.env
+ruby/.bundle
+ruby/vendor

@@ -37,6 +37,11 @@ module AgentLab
       def h(text) = Rack::Utils.escape_html(text.to_s)
     end
 
+    # For container and load balancer health checks. No session, no model call.
+    get "/healthz" do
+      "ok"
+    end
+
     get "/" do
       conversation # sets the cookie
       erb :index

@@ -69,6 +69,18 @@ make rb-run    # stage 3 REPL with tracing
 make rb-web    # Sinatra UI on :8080
 ```
 
+### Containers and deployment (stages 9 and 10)
+
+`compose.yaml` runs the Go, Ruby and LangGraph apps and the LangGraph chat UI
+in containers. The model stays on your Mac, because Docker there cannot use the
+GPU. Stage 10 is a written guide to deploying, in [docs/deploy.md](docs/deploy.md).
+
+```bash
+make docker-up      # go :8080, ruby :8081, langgraph :2024, chat UI :3000
+make docker-smoke   # health checks only, no model needed
+make docker-down
+```
+
 ### Evals (stage 5)
 
 ```bash
@@ -120,6 +132,8 @@ JokeAPI URL) to stderr. Most of the learning is in reading that output.
 | 6 | **Provider switching**: stage 3 on Ollama, OpenAI or Claude behind one interface | `internal/provider`, `internal/stage6` | ✅ |
 | 7 | **Agent in a web app**: a Gin chat UI, one in-process agent per browser session | `internal/web`, `cmd/jokes-web` | ✅ |
 | 8 | **LangGraph**: the agent as a graph (state, nodes, edges, checkpointer), served by the LangGraph dev server + agent-chat-ui | `python/` | ✅ |
+| 9 | **Containers**: each web version in a small image, run together with Compose | `docker/`, `compose.yaml` | ✅ |
+| 10 | **Deployment**: what changes on a server, with two options (hosted model API, or your own machine) | `docs/deploy.md` | 📄 guide only |
 
 ### Things to try
 

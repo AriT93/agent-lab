@@ -67,6 +67,7 @@ func (s *Server) Handler() http.Handler {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.SetHTMLTemplate(template.Must(template.ParseFS(templates, "templates/*.html")))
+	r.GET("/healthz", func(c *gin.Context) { c.String(http.StatusOK, "ok") }) // for container and load balancer health checks
 	r.GET("/", s.index)
 	r.POST("/chat", s.chat)
 	r.POST("/reset", s.reset)

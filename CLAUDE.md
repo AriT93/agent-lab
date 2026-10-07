@@ -46,7 +46,7 @@ Clarity of each concept beats abstraction or cleverness.
 See the stage table in README.md. All planned stages are done: 0 (keywords),
 1 (structured output), 2 (tool-calling loop), 3 (multi-tool + memory +
 trimming), 3b (stage 3 in langchaingo), 4 (MCP server), 5 (evals),
-6 (provider switching), 7 (web UI), 8 (LangGraph in Python, `python/`). Ideas if you continue: run the evals per provider and
+6 (provider switching), 7 (web UI), 8 (LangGraph in Python, `python/`), 9 (containers), 10 (deployment guide, no live deploy). Ideas if you continue: run the evals per provider and
 record pass rates, fix the failing eval cases by changing prompts, add a
 resource or prompt to the MCP server.
 
@@ -66,4 +66,5 @@ go run ./cmd/jokes-web                   # browser chat UI on :8080, needs local
 make py-test                             # stage 8 (python/, uv) unit tests
 make lg-dev / lg-ui / lg-chat            # stage 8 server, chat UI, terminal REPL
 make rb-test / rb-run / rb-web           # Ruby port (ruby/): tests, REPL, Sinatra UI
+make docker-up / docker-smoke / docker-down  # stage 9 containers (model stays on the host)
 ```

@@ -1,0 +1,55 @@
+# Stage 9: run every web version of the agent in containers.
+#
+#   docker compose up --build go ruby          # the Go and Ruby chat UIs
+#   docker compose up --build langgraph ui     # LangGraph server + chat UI
+#   docker compose --profile ollama up ollama  # also run Ollama in a container
+#
+# The model is NOT in these containers by default. On a Mac, Docker runs Linux
+# in a VM with no access to the GPU, and the qwen3.5 MLX model only runs through
+# Ollama installed natively on macOS. So the apps call the Ollama on your host:
+# host.docker.internal is how a container reaches your machine.
+#
+# On a Linux box (see docs/deploy.md) put the model in Compose instead:
+#   OLLAMA_HOST=http://ollama:11434 docker compose --profile ollama up
+
+x-model: &model
+  environment:
+    OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+  extra_hosts:
+    - "host.docker.internal:host-gateway" # already defined on Docker Desktop; needed on Linux
+  restart: unless-stopped
+
+services:
+  go:
+    <<: *model
+    build: { context: ., dockerfile: docker/go.Dockerfile }
+    ports: ["127.0.0.1:8080:8080"]
+
+  ruby:
+    <<: *model
+    build: { context: ., dockerfile: docker/ruby.Dockerfile, target: app }
+    ports: ["127.0.0.1:8081:8080"]
+
+  langgraph:
+    <<: *model
+    build: { context: ., dockerfile: docker/python.Dockerfile }
+    ports: ["127.0.0.1:2024:2024"]
+
+  ui:
+    build: { context: ., dockerfile: docker/chat-ui.Dockerfile }
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on: [langgraph]
+
+  ollama:
+    profiles: [ollama]
+    image: ollama/ollama
+    ports: ["127.0.0.1:11435:11434"] # 11435 so it doesn't collide with a native Ollama
+    volumes: [ollama:/root/.ollama]
+    # NVIDIA GPU on Linux: uncomment, and install the NVIDIA container toolkit.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
+
+volumes:
+  ollama:

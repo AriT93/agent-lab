@@ -7,6 +7,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -23,7 +24,12 @@ func main() {
 	model := flag.String("model", "", "ollama model (default: "+ollama.DefaultModel+")")
 	numCtx := flag.Int("ctx", 8192, "ollama: context window in tokens; bigger costs memory")
 	keepAlive := flag.String("keep-alive", "2m", "ollama: how long the model stays loaded when idle")
+	healthcheck := flag.Bool("healthcheck", false, "GET /healthz on -addr and exit 0 if it answers (for container health checks: the image has no curl)")
 	flag.Parse()
+
+	if *healthcheck {
+		os.Exit(probe(*addr))
+	}
 
 	llm := ollama.New()
 	llm.NumCtx, llm.KeepAlive = *numCtx, *keepAlive
@@ -49,4 +55,26 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// probe asks a running server for /healthz. A wildcard bind address like
+// 0.0.0.0 is not dialable everywhere, so it probes localhost instead.
+func probe(addr string) int {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return 2
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	client := http.Client{Timeout: 3 * time.Second}
+	res, err := client.Get("http://" + net.JoinHostPort(host, port) + "/healthz")
+	if err != nil {
+		return 1
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return 1
+	}
+	return 0
 }

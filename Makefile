@@ -1,4 +1,4 @@
-.PHONY: build test live run eval vet clean py-test lg-dev lg-chat lg-ui rb-test rb-run rb-eval rb-web
+.PHONY: build test live run eval vet clean py-test lg-dev lg-chat lg-ui rb-test rb-run rb-eval rb-web docker-build docker-up docker-down docker-smoke
 
 build:
 	go build -o bin/jokes ./cmd/jokes
@@ -32,6 +32,23 @@ rb-eval:
 
 rb-web:
 	cd ruby && bundle exec bin/jokes-web
+
+# Stage 9: containers. The model stays on your Mac (see compose.yaml).
+docker-build:
+	docker compose build go ruby langgraph ui
+
+docker-up:
+	docker compose up -d --build go ruby langgraph ui
+	@echo "go :8080  ruby :8081  langgraph :2024  chat-ui :3000"
+
+docker-down:
+	docker compose down
+
+# No model needed: starts the apps, waits for their health checks, probes them.
+docker-smoke:
+	docker compose up -d --build --wait go ruby langgraph
+	curl -fsS localhost:8080/healthz && echo && curl -fsS localhost:8081/healthz && echo && curl -fsS localhost:2024/ok && echo
+	docker compose down
 
 py-test:
 	cd python && uv run pytest -q
