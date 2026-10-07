@@ -24,7 +24,9 @@ Clarity of each concept beats abstraction or cleverness.
 - Each stage file opens with a doc comment stating its lesson. Keep it accurate.
 - Talk to model servers over plain HTTP with structs that mirror the wire format
   (`internal/ollama`). Don't swap in an SDK or framework except in a stage
-  whose lesson is that framework (3b: langchaingo).
+  whose lesson is that framework (3b: langchaingo; 7: Gin, for the web UI only).
+- Stage 8 is Python (LangGraph) and lives entirely in `python/`; see `python/CLAUDE.md`.
+  These Go conventions don't apply there.
 - API clients take typed requests, never free text. Model output is decoded and
   passed through `Normalize()` before use.
 - Tool errors go back to the model as tool results, not Go errors, so it can retry.
@@ -43,7 +45,7 @@ Clarity of each concept beats abstraction or cleverness.
 See the stage table in README.md. All planned stages are done: 0 (keywords),
 1 (structured output), 2 (tool-calling loop), 3 (multi-tool + memory +
 trimming), 3b (stage 3 in langchaingo), 4 (MCP server), 5 (evals),
-6 (provider switching). Ideas if you continue: run the evals per provider and
+6 (provider switching), 7 (web UI), 8 (LangGraph in Python, `python/`). Ideas if you continue: run the evals per provider and
 record pass rates, fix the failing eval cases by changing prompts, add a
 resource or prompt to the MCP server.
 
@@ -59,4 +61,7 @@ make live                                # also hits real joke APIs
 go run ./cmd/jokes -stage 3 -trace       # needs local Ollama
 go run ./cmd/jokes-eval -stage 0         # evals; -stage 1/3/6 need a model
 go run ./cmd/jokes-mcp -trace            # MCP server on stdio
+go run ./cmd/jokes-web                   # browser chat UI on :8080, needs local Ollama
+make py-test                             # stage 8 (python/, uv) unit tests
+make lg-dev / lg-ui / lg-chat            # stage 8 server, chat UI, terminal REPL
 ```

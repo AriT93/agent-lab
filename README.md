@@ -34,6 +34,30 @@ claude mcp add jokes -- go run ./cmd/jokes-mcp   # then ask Claude Code for a jo
 go run ./cmd/jokes-mcp -trace                    # logs every JSON-RPC message to stderr
 ```
 
+### Web UI (stage 7)
+
+```bash
+go run ./cmd/jokes-web   # then open http://localhost:8080
+```
+
+Chat with the stage 3 agent in a browser (Gin). Each browser gets its own
+conversation; every reply has a collapsible trace. Binds to localhost only
+because there is no auth.
+
+### LangGraph (stage 8, Python)
+
+The same agent as a LangGraph graph, served the standard way: `langgraph dev`
+exposes it over LangGraph's Agent Server API (threads, streaming, checkpointing)
+and LangChain's open-source [agent-chat-ui](https://github.com/langchain-ai/agent-chat-ui)
+is the browser front end. Needs `uv`, Node with pnpm, and local Ollama.
+
+```bash
+make lg-dev    # terminal 1: agent server on :2024
+make lg-ui     # terminal 2: chat UI on :3000 (clones agent-chat-ui into .cache/)
+make lg-chat   # or: terminal REPL with -trace style output, no UI
+make py-test   # unit tests, no Ollama or network
+```
+
 ### Evals (stage 5)
 
 ```bash
@@ -83,6 +107,8 @@ JokeAPI URL) to stderr. Most of the learning is in reading that output.
 | 4 | **MCP**: the joke tools as an MCP server (usable from Claude Code) | `internal/stage4`, `cmd/jokes-mcp` | ✅ |
 | 5 | **Evals**: score each stage against a table of prompts and conversations | `internal/evals`, `cmd/jokes-eval` | ✅ |
 | 6 | **Provider switching**: stage 3 on Ollama, OpenAI or Claude behind one interface | `internal/provider`, `internal/stage6` | ✅ |
+| 7 | **Agent in a web app**: a Gin chat UI, one in-process agent per browser session | `internal/web`, `cmd/jokes-web` | ✅ |
+| 8 | **LangGraph**: the agent as a graph (state, nodes, edges, checkpointer), served by the LangGraph dev server + agent-chat-ui | `python/` | ✅ |
 
 ### Things to try
 

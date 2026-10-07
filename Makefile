@@ -1,9 +1,10 @@
-.PHONY: build test live run eval vet clean
+.PHONY: build test live run eval vet clean py-test lg-dev lg-chat lg-ui
 
 build:
 	go build -o bin/jokes ./cmd/jokes
 	go build -o bin/jokes-mcp ./cmd/jokes-mcp
 	go build -o bin/jokes-eval ./cmd/jokes-eval
+	go build -o bin/jokes-web ./cmd/jokes-web
 
 test:
 	go test ./...
@@ -19,6 +20,24 @@ eval:
 
 run:
 	go run ./cmd/jokes -stage 3 -trace
+
+py-test:
+	cd python && uv run pytest -q
+
+# Stage 8: the LangGraph dev server (:2024) and LangChain's agent-chat-ui (:3000).
+# Run each in its own terminal. If pnpm fails with "Cannot find matching keyid",
+# that is the corepack key rotation bug: export COREPACK_INTEGRITY_KEYS=0.
+lg-dev:
+	cd python && uv run langgraph dev --no-browser
+
+lg-chat:
+	cd python && uv run python -m agent_lab.cli --trace
+
+lg-ui:
+	mkdir -p python/.cache
+	test -d python/.cache/agent-chat-ui || git clone --depth 1 https://github.com/langchain-ai/agent-chat-ui python/.cache/agent-chat-ui
+	cd python/.cache/agent-chat-ui && test -f .env || cp .env.example .env
+	cd python/.cache/agent-chat-ui && pnpm install && pnpm dev
 
 clean:
 	rm -rf bin
