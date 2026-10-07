@@ -141,3 +141,22 @@ func TestEmptyToolInputIsReplayedAsObject(t *testing.T) {
 		t.Errorf("empty arguments replayed: %s", second)
 	}
 }
+
+func TestOnToolSeesEveryCall(t *testing.T) {
+	url, _ := scriptedModel(t, toolCall("search_dad_jokes", `{"__arg1":"dog"}`), say("A dog joke."))
+	jokes, dads := fakeSources(t)
+	a, err := New(Config{BaseURL: url, Model: "fake"}, jokes, dads)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names, inputs, results []string
+	a.OnTool = func(name, input, result string) {
+		names, inputs, results = append(names, name), append(inputs, input), append(results, result)
+	}
+	if _, err := a.Respond(context.Background(), "a joke about dogs"); err != nil {
+		t.Fatal(err)
+	}
+	if len(names) != 1 || names[0] != "search_dad_jokes" || inputs[0] != "dog" || !strings.Contains(results[0], "A dog joke.") {
+		t.Errorf("OnTool saw names=%v inputs=%v results=%v", names, inputs, results)
+	}
+}

@@ -10,7 +10,8 @@ bundle install
 bundle exec rake test                      # unit tests, no network, no Ollama
 bundle exec bin/jokes --stage 3 --trace    # REPL; needs local Ollama
 bundle exec bin/jokes --stage 3b --trace   # same agent in langchainrb
-bundle exec bin/jokes-eval --stage 0       # evals; --stage 1/3 need a model
+bundle exec bin/jokes-eval --stage 0       # evals; --stage 1/3/3b need a model
+bundle exec bin/jokes-eval --stage 8       # scores the Python LangGraph server (run `langgraph dev` first)
 bundle exec bin/jokes-mcp --trace          # MCP server on stdio
 bundle exec bin/jokes-web                  # Sinatra chat UI on http://localhost:8080
 ```

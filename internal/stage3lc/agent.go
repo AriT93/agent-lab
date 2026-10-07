@@ -75,6 +75,10 @@ type Config struct {
 type Agent struct {
 	Trace *trace.Tracer
 
+	// OnTool, if set, sees every tool call: its name, the string the model wrote as
+	// input, and the result (used by evals).
+	OnTool func(name, input, result string)
+
 	exec *agents.Executor
 	mem  *memory.ConversationWindowBuffer
 	seen map[string]bool
@@ -97,7 +101,7 @@ func New(cfg Config, jokes *jokeapi.Client, dads *dadjoke.Client) (*Agent, error
 	a.mem = memory.NewConversationWindowBuffer(10, memory.WithMemoryKey("chat_history"))
 
 	agent := agents.NewOpenAIFunctionsAgent(legacyMaxTokens{llm},
-		[]tools.Tool{jokeAPITool{jokes, a.seen}, dadJokeTool{dads, a.seen}},
+		[]tools.Tool{recording{jokeAPITool{jokes, a.seen}, a}, recording{dadJokeTool{dads, a.seen}, a}},
 		agents.NewOpenAIOption().WithSystemMessage(systemPrompt+"\n\nConversation so far:\n{{.chat_history}}"),
 	)
 	a.exec = agents.NewExecutor(agent,
@@ -124,6 +128,21 @@ func (a *Agent) Respond(ctx context.Context, text string) (string, error) {
 		return "", err
 	}
 	return out, nil
+}
+
+// recording wraps a tool so evals can see each call. langchaingo's callbacks only
+// report a tool's output, not which tool ran or what it was given.
+type recording struct {
+	tools.Tool
+	agent *Agent
+}
+
+func (r recording) Call(ctx context.Context, input string) (string, error) {
+	out, err := r.Tool.Call(ctx, input)
+	if r.agent.OnTool != nil {
+		r.agent.OnTool(r.Name(), input, out)
+	}
+	return out, err
 }
 
 // legacyMaxTokens makes the OpenAI client send max_tokens instead of its

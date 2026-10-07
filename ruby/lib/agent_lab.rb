@@ -14,6 +14,7 @@ module AgentLab
   autoload :Stage2,   "agent_lab/stage2"
   autoload :Stage3,   "agent_lab/stage3"
   autoload :Stage3b,  "agent_lab/stage3b"
+  autoload :Stage8,   "agent_lab/stage8"
   autoload :Stage4,   "agent_lab/stage4"
   autoload :Evals,    "agent_lab/evals"
   autoload :Web,      "agent_lab/web"

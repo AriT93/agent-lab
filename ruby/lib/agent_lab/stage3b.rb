@@ -94,18 +94,22 @@ module AgentLab
                             description: 'Literal substring the joke text must contain. Rarely matches multi-word phrases; use "" for none.'
       end
 
-      def initialize(client, seen)
+      # recorder, if given, is called with (name, arguments, result) for every call (used by evals).
+      def initialize(client, seen, recorder = nil)
         @client = client
         @seen = seen
+        @recorder = recorder
       end
 
       # The model's arguments arrive as keywords; `**` swallows any it invents.
       def get_joke(**args)
         req = JokeApi::Request.from_h(args).normalize
-        attempt do
+        result = attempt do
           j = @client.fetch(req)
           { joke: j.text, source: "JokeAPI", category: j.category } unless told(@seen, "jokeapi:#{j.id}")
         end
+        @recorder&.call("get_joke", args, result)
+        result
       end
     end
 
@@ -120,21 +124,27 @@ module AgentLab
         property :term, type: "string", description: 'One short search word, or "" for random.', required: true
       end
 
-      def initialize(client, seen)
+      def initialize(client, seen, recorder = nil)
         @client = client
         @seen = seen
+        @recorder = recorder
       end
 
       def search(term: "", **)
-        attempt do
+        result = attempt do
           j = term.to_s.empty? ? @client.random : @client.search(term.to_s)
           { joke: j.joke, source: "icanhazdadjoke" } unless told(@seen, "dad:#{j.id}")
         end
+        @recorder&.call("search_dad_jokes", { term: term }, result)
+        result
       end
     end
 
     class Agent
       attr_accessor :trace
+      # Evals hook: called with (tool name, arguments, result) for every tool call. The names
+      # are stage 3's (get_joke, search_dad_jokes), not the framework's joke_api__get_joke.
+      attr_accessor :on_tool
 
       def initialize(llm_client, jokes, dads, max_steps: 6, think: false, trace: Trace::OFF)
         @trace = trace
@@ -181,13 +191,15 @@ module AgentLab
         assistant = Langchain::Assistant.new(
           llm: llm,
           instructions: SYSTEM_PROMPT,
-          tools: [JokeApiTool.new(@jokes, @seen), DadJokesTool.new(@dads, @seen)],
+          tools: [JokeApiTool.new(@jokes, @seen, record_tool), DadJokesTool.new(@dads, @seen, record_tool)],
           add_message_callback: method(:trace_message),
           tool_execution_callback: method(:before_tool)
         )
         @trace.step("stage3b: system prompt", SYSTEM_PROMPT)
         assistant
       end
+
+      def record_tool = ->(name, args, result) { @on_tool&.call(name, args, result) }
 
       # Raising here ends the run (the assistant rescues it and goes to
       # :failed), which is the only way to stop a looping model.

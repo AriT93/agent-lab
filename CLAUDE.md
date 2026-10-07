@@ -60,7 +60,7 @@ stage 3 explains later jokes unasked (`no-unasked-explanations`).
 make test                                # unit tests, no network
 make live                                # also hits real joke APIs
 go run ./cmd/jokes -stage 3 -trace       # needs local Ollama
-go run ./cmd/jokes-eval -stage 0         # evals; -stage 1/3/6 need a model
+go run ./cmd/jokes-eval -stage 0         # evals; -stage 1/3/3b/6 need a model
 go run ./cmd/jokes-mcp -trace            # MCP server on stdio
 go run ./cmd/jokes-web                   # browser chat UI on :8080, needs local Ollama
 make py-test                             # stage 8 (python/, uv) unit tests

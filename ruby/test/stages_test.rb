@@ -144,3 +144,56 @@ class Stage3bTest < Minitest::Test
     Langchain.logger.level = Logger::ERROR
   end
 end
+
+class Stage3bOnToolTest < Minitest::Test
+  def test_on_tool_sees_stage_3_names_and_results
+    fake_sources
+    script_model(call("dad_jokes__search", { term: "dog" }), say("A dog joke."))
+    a = AgentLab::Stage3b::Agent.new(llm, jokes, dads)
+    seen = []
+    a.on_tool = ->(name, args, result) { seen << [name, args, result] }
+    a.respond("a joke about dogs")
+    name, args, result = seen.first
+    assert_equal "search_dad_jokes", name
+    assert_equal({ term: "dog" }, args)
+    assert_includes result, "A dog joke."
+  end
+end
+
+class Stage8RemoteTest < Minitest::Test
+  URL = "http://127.0.0.1:2024"
+
+  def test_reads_tool_calls_and_reply_from_the_thread_state
+    stub_request(:post, "#{URL}/threads").to_return(body: '{"thread_id":"t1"}')
+    messages = [
+      { type: "human", content: "a dog joke" },
+      { type: "ai", content: "", tool_calls: [{ name: "search_dad_jokes", args: { term: "dog" }, id: "c1" }] },
+      { type: "tool", name: "search_dad_jokes", content: '{"joke":"A dog joke."}', tool_call_id: "c1" },
+      { type: "ai", content: "A dog joke.", tool_calls: [] }
+    ]
+    stub_request(:post, "#{URL}/threads/t1/runs/wait").to_return(body: JSON.generate(messages: messages, seen: ["dad:1"]))
+    agent = AgentLab::Stage8::Agent.new(url: URL)
+    calls = []
+    agent.on_tool = ->(name, args, result) { calls << [name, args, result] }
+    assert_equal "A dog joke.", agent.respond("a dog joke")
+    assert_equal [["search_dad_jokes", { term: "dog" }, '{"joke":"A dog joke."}']], calls
+  end
+
+  def test_second_turn_only_reports_new_messages
+    stub_request(:post, "#{URL}/threads").to_return(body: '{"thread_id":"t1"}')
+    first = [{ type: "human", content: "one" }, { type: "ai", content: "reply one", tool_calls: [] }]
+    second = first + [{ type: "human", content: "two" }, { type: "ai", content: "reply two", tool_calls: [] }]
+    stub_request(:post, "#{URL}/threads/t1/runs/wait").to_return({ body: JSON.generate(messages: first) },
+                                                                 { body: JSON.generate(messages: second) })
+    agent = AgentLab::Stage8::Agent.new(url: URL)
+    agent.respond("one")
+    assert_equal "reply two", agent.respond("two")
+  end
+
+  def test_server_error_is_reported
+    stub_request(:post, "#{URL}/threads").to_return(body: '{"thread_id":"t1"}')
+    stub_request(:post, "#{URL}/threads/t1/runs/wait").to_return(body: '{"__error__":{"message":"boom"}}')
+    e = assert_raises(AgentLab::Ollama::Error) { AgentLab::Stage8::Agent.new(url: URL).respond("x") }
+    assert_match(/boom/, e.message)
+  end
+end

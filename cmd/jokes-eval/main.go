@@ -25,13 +25,14 @@ import (
 	"github.com/AriT93/agent-lab/internal/stage0"
 	"github.com/AriT93/agent-lab/internal/stage1"
 	"github.com/AriT93/agent-lab/internal/stage3"
+	"github.com/AriT93/agent-lab/internal/stage3lc"
 	"github.com/AriT93/agent-lab/internal/stage4"
 	"github.com/AriT93/agent-lab/internal/stage6"
 	"github.com/AriT93/agent-lab/internal/trace"
 )
 
 func main() {
-	stage := flag.String("stage", "0", "0 = keywords, 1 = structured output, 3 = multi-tool agent, 6 = agent on any provider")
+	stage := flag.String("stage", "0", "0 = keywords, 1 = structured output, 3 = multi-tool agent, 3b = stage 3 in langchaingo, 6 = agent on any provider")
 	providerName := flag.String("provider", "ollama", "stage 6: "+provider.Names)
 	backend := flag.String("backend", "ollama", `stage 1 backend: "ollama" or "claude"`)
 	model := flag.String("model", "", "model name (default: the backend's default)")
@@ -60,7 +61,7 @@ func main() {
 		llm.Model = *model
 	}
 	defer func() {
-		if *stage == "3" || (*stage == "1" && *backend == "ollama") || (*stage == "6" && *providerName == "ollama") {
+		if *stage == "3" || *stage == "3b" || (*stage == "1" && *backend == "ollama") || (*stage == "6" && *providerName == "ollama") {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			llm.Unload(ctx)
@@ -102,6 +103,24 @@ func main() {
 			}
 			a.OnTool = func(name string, args json.RawMessage, result string) {
 				record(evals.Call{Tool: name, Args: string(args), Result: result})
+			}
+			return a
+		}
+		runOnce = func(ctx context.Context) []evals.Result {
+			return evals.RunConversations(ctx, newAgent, evals.ConversationCases, filter)
+		}
+	case *stage == "3b":
+		jokes, dads := jokeapi.New(), dadjoke.New()
+		newAgent := func(record func(evals.Call)) evals.Agent {
+			// Over /v1 the context size and keep-alive cannot be set (see stage3lc).
+			a, err := stage3lc.New(stage3lc.Config{BaseURL: llm.BaseURL + "/v1", Model: llm.Model, MaxTokens: llm.NumPredict}, jokes, dads)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			a.Trace = tr
+			a.OnTool = func(name, input, result string) {
+				record(evals.Call{Tool: name, Args: input, Result: result})
 			}
 			return a
 		}

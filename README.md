@@ -88,6 +88,8 @@ make eval                                          # stage 0 baseline, no LLM
 go run ./cmd/jokes-eval -stage 1 -n 3 -trace       # 3 runs per case → pass rates
 go run ./cmd/jokes-eval -stage 3 -run restriction  # agent conversations matching a regexp
 go run ./cmd/jokes-eval -stage 6 -provider claude  # same cases, another model
+go run ./cmd/jokes-eval -stage 3b -n 3               # the langchaingo agent through the same table
+(cd ruby && bundle exec bin/jokes-eval --stage 8)     # the Python LangGraph server, driven over HTTP
 ```
 
 ### Providers (stage 6)
