@@ -91,6 +91,9 @@ def build():
     return g
 
 
-# Six model calls per user message at most, like stage 3's MaxSteps. A step is
-# one node run, so agent+tools pairs cost two.
-graph = build().compile().with_config(recursion_limit=13)
+# Six model calls per user message at most, like stage 3's MaxSteps. The limit
+# counts node runs, and each agent+tools pass is two of them: agent runs are
+# steps 1, 3, 5, 7, 9 and 11, so 12 allows six model calls. (13 would allow a
+# seventh. tests/test_graph.py checks the count.)
+RECURSION_LIMIT = 12
+graph = build().compile().with_config(recursion_limit=RECURSION_LIMIT)

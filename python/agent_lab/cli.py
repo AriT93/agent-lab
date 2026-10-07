@@ -32,7 +32,7 @@ def main() -> None:
     ap.add_argument("--trace", action="store_true", help="print each model call, tool call and tool result")
     args = ap.parse_args()
 
-    app = g.build().compile(checkpointer=InMemorySaver()).with_config(recursion_limit=13)
+    app = g.build().compile(checkpointer=InMemorySaver()).with_config(recursion_limit=g.RECURSION_LIMIT)
     thread = {"configurable": {"thread_id": str(uuid.uuid4())}}
     print(f"agent-lab stage 8 · LangGraph · {g.model.bound.model} · ctx {g.NUM_CTX}\n"
           "Ask for a joke; blank line or Ctrl-D to quit. /reset forgets the conversation.")

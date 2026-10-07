@@ -85,3 +85,20 @@ def test_bad_arguments_go_back_to_the_model(monkeypatch):
     app, _, cfg = run(monkeypatch, call("get_joke", categories=["Nonsense"], type="any", blacklist=[], contains=""), AIMessage("sorry"))
     out = app.invoke({"messages": [HumanMessage("joke")]}, cfg)
     assert [m for m in out["messages"] if isinstance(m, ToolMessage)], "validation error should come back as a tool message"
+
+
+def test_step_limit_allows_six_model_calls(monkeypatch):
+    """A model that asks for a tool every time must be stopped after six calls, like stage 3."""
+    from langgraph.errors import GraphRecursionError
+
+    class AlwaysCallsATool:
+        calls = 0
+
+        def invoke(self, messages):
+            AlwaysCallsATool.calls += 1
+            return call("search_dad_jokes", term="")
+
+    monkeypatch.setattr(g, "model", AlwaysCallsATool())
+    with pytest.raises(GraphRecursionError):
+        g.graph.invoke({"messages": [HumanMessage("x")]})
+    assert AlwaysCallsATool.calls == 6
