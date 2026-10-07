@@ -1,0 +1,3 @@
+<div class="msg user">{{.User}}</div>
+{{if .Error}}<div class="msg error">error: {{.Error}}</div>{{else}}<div class="msg bot">{{.Reply}}</div>{{end}}
+{{if .Trace}}<details class="trace"><summary>trace</summary><pre>{{.Trace}}</pre></details>{{end}}
