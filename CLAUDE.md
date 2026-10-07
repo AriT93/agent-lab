@@ -26,6 +26,7 @@ Clarity of each concept beats abstraction or cleverness.
   (`internal/ollama`). Don't swap in an SDK or framework except in a stage
   whose lesson is that framework (3b: langchaingo; 7: Gin, for the web UI only).
 - Stage 8 is Python (LangGraph) and lives entirely in `python/`; see `python/CLAUDE.md`.
+  `ruby/` is a Ruby port of stages 0-5, 3b (langchainrb) and 7 for readability; see `ruby/CLAUDE.md`.
   These Go conventions don't apply there.
 - API clients take typed requests, never free text. Model output is decoded and
   passed through `Normalize()` before use.
@@ -64,4 +65,5 @@ go run ./cmd/jokes-mcp -trace            # MCP server on stdio
 go run ./cmd/jokes-web                   # browser chat UI on :8080, needs local Ollama
 make py-test                             # stage 8 (python/, uv) unit tests
 make lg-dev / lg-ui / lg-chat            # stage 8 server, chat UI, terminal REPL
+make rb-test / rb-run / rb-web           # Ruby port (ruby/): tests, REPL, Sinatra UI
 ```

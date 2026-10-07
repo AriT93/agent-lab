@@ -1,0 +1,88 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    addressable (2.9.0)
+      public_suffix (>= 2.0.2, < 8.0)
+    baran (0.1.12)
+    base64 (0.3.0)
+    bigdecimal (4.1.3)
+    crack (1.0.1)
+      bigdecimal
+      rexml
+    csv (3.3.6)
+    faraday (2.14.4)
+      faraday-net_http (>= 2.0, < 3.5)
+      json
+      logger
+    faraday-net_http (3.4.4)
+      net-http (~> 0.5)
+    hashdiff (1.2.1)
+    json (3.0.2)
+    json-schema (5.1.0)
+      addressable (~> 2.8)
+    langchainrb (0.19.5)
+      baran (~> 0.1.9)
+      csv
+      json-schema (>= 4, < 6)
+      matrix
+      pragmatic_segmenter (~> 0.3.0)
+      zeitwerk (~> 2.5)
+    logger (1.7.0)
+    matrix (0.4.3)
+    minitest (5.27.0)
+    mustermann (3.1.1)
+    net-http (0.9.1)
+      uri (>= 0.11.1)
+    nio4r (2.7.5)
+    pragmatic_segmenter (0.3.24)
+    public_suffix (6.0.2)
+    puma (8.0.2)
+      nio4r (~> 2.0)
+    rack (3.2.7)
+    rack-protection (4.2.1)
+      base64 (>= 0.1.0)
+      logger (>= 1.6.0)
+      rack (>= 3.0.0, < 4)
+    rack-session (2.1.2)
+      base64 (>= 0.1.0)
+      rack (>= 3.0.0)
+    rack-test (2.2.0)
+      rack (>= 1.3)
+    rackup (2.3.1)
+      rack (>= 3)
+    rake (13.4.2)
+    rexml (3.4.4)
+    sinatra (4.2.1)
+      logger (>= 1.6.0)
+      mustermann (~> 3.0)
+      rack (>= 3.0.0, < 4)
+      rack-protection (= 4.2.1)
+      rack-session (>= 2.0.0, < 3)
+      tilt (~> 2.0)
+    tilt (2.9.0)
+    uri (1.1.1)
+    webmock (3.26.4)
+      addressable (>= 2.8.0)
+      crack (>= 0.3.2)
+      hashdiff (>= 0.4.0, < 2.0.0)
+    zeitwerk (2.6.18)
+
+PLATFORMS
+  arm64-darwin-24
+
+DEPENDENCIES
+  faraday
+  langchainrb
+  minitest
+  puma
+  rack-test
+  rackup
+  rake
+  sinatra (~> 4.0)
+  webmock
+
+RUBY VERSION
+   ruby 3.1.6p260
+
+BUNDLED WITH
+   2.3.27

@@ -1,0 +1,12 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# The joke tools as an MCP server on stdio (stage 4).
+#
+#   claude mcp add jokes -- /path/to/ruby/bin/jokes-mcp
+#   bin/jokes-mcp --trace        # logs every JSON-RPC message to stderr
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "agent_lab"
+
+trace = ARGV.include?("--trace") ? AgentLab::Trace.new($stderr) : AgentLab::Trace::OFF
+AgentLab::Stage4.server(AgentLab::JokeApi::Client.new, AgentLab::DadJoke::Client.new, trace: trace).serve

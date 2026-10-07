@@ -1,4 +1,4 @@
-.PHONY: build test live run eval vet clean py-test lg-dev lg-chat lg-ui
+.PHONY: build test live run eval vet clean py-test lg-dev lg-chat lg-ui rb-test rb-run rb-eval rb-web
 
 build:
 	go build -o bin/jokes ./cmd/jokes
@@ -20,6 +20,18 @@ eval:
 
 run:
 	go run ./cmd/jokes -stage 3 -trace
+
+rb-test:
+	cd ruby && bundle exec rake test
+
+rb-run:
+	cd ruby && bundle exec bin/jokes --stage 3 --trace
+
+rb-eval:
+	cd ruby && bundle exec bin/jokes-eval --stage 0
+
+rb-web:
+	cd ruby && bundle exec bin/jokes-web
 
 py-test:
 	cd python && uv run pytest -q

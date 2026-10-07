@@ -1,0 +1,34 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Serves a browser chat UI for the stage 3 agent (stage 7).
+#
+#   bundle exec bin/jokes-web      # then open http://localhost:8080
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "agent_lab"
+require "optparse"
+
+opts = { bind: "127.0.0.1", port: 8080, model: nil, ctx: 8192, keep_alive: "2m" }
+OptionParser.new do |o|
+  o.on("--bind ADDR", "listen address (localhost only by default: there is no auth)") { |v| opts[:bind] = v }
+  o.on("--port N", Integer, "port (default 8080)") { |v| opts[:port] = v }
+  o.on("--model NAME", "ollama model (default: #{AgentLab::Ollama::DEFAULT_MODEL})") { |v| opts[:model] = v }
+  o.on("--ctx N", Integer, "ollama: context window in tokens; bigger costs memory") { |v| opts[:ctx] = v }
+  o.on("--keep-alive D", "ollama: how long the model stays loaded when idle") { |v| opts[:keep_alive] = v }
+end.parse!
+
+llm = AgentLab::Ollama::Client.new(model: opts[:model] || AgentLab::Ollama::DEFAULT_MODEL,
+                                   num_ctx: opts[:ctx], keep_alive: opts[:keep_alive])
+AgentLab::Web.set :llm, llm
+AgentLab::Web.set :jokes, AgentLab::JokeApi::Client.new
+AgentLab::Web.set :dads, AgentLab::DadJoke::Client.new
+
+# Free the model's memory on the way out, like bin/jokes does.
+at_exit do
+  llm.unload
+rescue AgentLab::Ollama::Error
+  nil
+end
+
+puts "agent-lab web (ruby) · #{llm.model} · ctx #{llm.num_ctx} · keep-alive #{llm.keep_alive}"
+AgentLab::Web.run!(bind: opts[:bind], port: opts[:port])

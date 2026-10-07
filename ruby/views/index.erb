@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agent-lab jokes</title>
+<style>
+  :root { --bg:#fff; --fg:#1a1a1a; --user:#e8f0fe; --bot:#f1f1f1; --err:#fde8e8; --line:#d0d0d0; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --fg:#e6e6e6; --user:#1f3350; --bot:#252830; --err:#4a2327; --line:#3a3d46; }
+  }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif; }
+  main { max-width:42rem; margin:0 auto; padding:1rem; display:flex; flex-direction:column; min-height:100vh; box-sizing:border-box; }
+  header { display:flex; justify-content:space-between; align-items:baseline; }
+  h1 { font-size:1.1rem; margin:0; }
+  #log { flex:1; display:flex; flex-direction:column; gap:.5rem; padding:1rem 0; }
+  .msg { padding:.5rem .8rem; border-radius:.6rem; max-width:85%; white-space:pre-wrap; }
+  .user { background:var(--user); align-self:flex-end; }
+  .bot { background:var(--bot); align-self:flex-start; }
+  .error { background:var(--err); align-self:flex-start; }
+  .trace { font-size:.8rem; opacity:.8; }
+  .trace pre { overflow-x:auto; border:1px solid var(--line); padding:.5rem; border-radius:.4rem; }
+  form { display:flex; gap:.5rem; position:sticky; bottom:0; background:var(--bg); padding:.5rem 0; }
+  input[name=text] { flex:1; padding:.6rem; font:inherit; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:.4rem; }
+  button { font:inherit; padding:.6rem 1rem; border-radius:.4rem; border:1px solid var(--line); background:var(--bot); color:var(--fg); cursor:pointer; }
+  button:disabled { opacity:.5; cursor:wait; }
+</style>
+</head>
+<body>
+<main>
+  <header><h1>agent-lab · stage 3 agent</h1><button id="reset" type="button">New chat</button></header>
+  <div id="log"></div>
+  <form id="form">
+    <input name="text" placeholder="Ask for a joke…" autocomplete="off" autofocus>
+    <button>Send</button>
+  </form>
+</main>
+<script>
+const form = document.getElementById('form'), log = document.getElementById('log');
+const input = form.elements.text, send = form.querySelector('button');
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!input.value.trim()) return;
+  const text = input.value;
+  input.value = ''; send.disabled = true;
+  const pending = document.createElement('div');
+  pending.className = 'msg user'; pending.textContent = text;
+  log.append(pending);
+  const wait = document.createElement('div');
+  wait.className = 'msg bot'; wait.textContent = '…';
+  log.append(wait);
+  try {
+    const res = await fetch('/chat', {method: 'POST', body: new URLSearchParams({text})});
+    pending.remove(); wait.remove();
+    log.insertAdjacentHTML('beforeend', await res.text());
+  } catch (err) {
+    wait.className = 'msg error'; wait.textContent = 'error: ' + err;
+  }
+  send.disabled = false; input.focus();
+  window.scrollTo(0, document.body.scrollHeight);
+});
+document.getElementById('reset').addEventListener('click', async () => {
+  await fetch('/reset', {method: 'POST'});
+  log.replaceChildren(); input.focus();
+});
+</script>
+</body>
+</html>

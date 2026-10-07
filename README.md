@@ -58,6 +58,17 @@ make lg-chat   # or: terminal REPL with -trace style output, no UI
 make py-test   # unit tests, no Ollama or network
 ```
 
+### Ruby version
+
+`ruby/` has stages 0-5 and the web UI again in plain Ruby, with a Sinatra chat
+page instead of Gin, plus stage 3b in langchainrb. See [ruby/README.md](ruby/README.md).
+
+```bash
+make rb-test   # unit tests
+make rb-run    # stage 3 REPL with tracing
+make rb-web    # Sinatra UI on :8080
+```
+
 ### Evals (stage 5)
 
 ```bash

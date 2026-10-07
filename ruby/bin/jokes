@@ -1,0 +1,90 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# A REPL for trying each stage of the agent lab.
+#
+#   bundle exec bin/jokes --stage 3 --trace
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "agent_lab"
+require "optparse"
+
+opts = { stage: "3", trace: false, think: false, ctx: 8192, keep_alive: "2m", model: nil }
+OptionParser.new do |o|
+  o.banner = "Usage: bin/jokes [options]"
+  o.on("--stage N", %w[0 1 2 3 3b], "0 = keywords, 1 = structured output, 2 = tool-calling agent, 3 = multi-tool agent with memory, 3b = stage 3 in langchainrb (default 3)") { |v| opts[:stage] = v }
+  o.on("--model NAME", "ollama model (default: #{AgentLab::Ollama::DEFAULT_MODEL})") { |v| opts[:model] = v }
+  o.on("--ctx N", Integer, "ollama: context window in tokens; bigger costs memory (default 8192)") { |v| opts[:ctx] = v }
+  o.on("--keep-alive D", "ollama: how long the model stays loaded when idle (default 2m)") { |v| opts[:keep_alive] = v }
+  o.on("--think", "stages 2-3: let the model reason before acting (slower, often smarter)") { opts[:think] = true }
+  o.on("--trace", "print each step: prompts, model output, tool calls, API requests") { opts[:trace] = true }
+end.parse!
+
+include AgentLab # rubocop:disable Style/MixinUsage
+
+trace = opts[:trace] ? Trace.new($stderr) : Trace::OFF
+jokes = JokeApi::Client.new
+llm = Ollama::Client.new(model: opts[:model] || Ollama::DEFAULT_MODEL, num_ctx: opts[:ctx], keep_alive: opts[:keep_alive])
+uses_ollama = opts[:stage] != "0"
+reset = nil
+
+# Stages 0-1 only interpret the request; we fetch the joke here. From stage 2
+# on, the agent fetches it.
+fetch_with = lambda do |interpreter|
+  lambda do |text|
+    req = interpreter.interpret(text)
+    trace.step("request", req.to_h)
+    trace.step("GET", req.url(jokes.base_url))
+    jokes.fetch(req).text
+  end
+end
+
+respond =
+  case opts[:stage]
+  when "0" then fetch_with.call(Stage0::Interpreter.new)
+  when "1" then fetch_with.call(Stage1::Interpreter.new(llm, trace: trace))
+  when "2" then Stage2::Agent.new(llm, jokes, think: opts[:think], trace: trace).method(:respond)
+  when "3"
+    agent = Stage3::Agent.new(llm, jokes, DadJoke::Client.new, think: opts[:think], trace: trace)
+    reset = agent.method(:reset)
+    agent.method(:respond)
+  when "3b"
+    agent = Stage3b::Agent.new(llm, jokes, DadJoke::Client.new, think: opts[:think], trace: trace)
+    reset = agent.method(:reset)
+    agent.method(:respond)
+  end
+
+# Free the model's memory on the way out, including on Ctrl-C, instead of
+# leaving it resident until keep-alive expires.
+unload = lambda do
+  llm.unload if uses_ollama
+rescue Ollama::Error
+  nil
+end
+at_exit(&unload)
+trap("INT") { puts; exit 130 }
+
+label = "stage #{opts[:stage]}"
+label += " · #{llm.model} · ctx #{llm.num_ctx} · keep-alive #{llm.keep_alive}" if uses_ollama
+puts "agent-lab (ruby) #{label}\nAsk for a joke; blank line or Ctrl-D to quit."
+puts "This stage remembers the conversation; /reset forgets it." if reset
+
+loop do
+  print "\n> "
+  line = $stdin.gets
+  break unless line
+
+  text = line.strip
+  break if text.empty? || %w[quit exit].include?(text)
+
+  if text == "/reset"
+    reset&.call
+    puts "(conversation forgotten)" if reset
+    next
+  end
+
+  begin
+    puts respond.call(text)
+  rescue Ollama::Error, JokeApi::Error, Http::Error => e
+    puts "error: #{e.message}"
+  end
+end

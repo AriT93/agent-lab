@@ -1,0 +1,55 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Scores the stages against a table of prompts (stage 5).
+#
+#   bin/jokes-eval --stage 0              # keyword baseline, no LLM
+#   bin/jokes-eval --stage 1 -n 3         # 3 runs per case -> pass rates
+#   bin/jokes-eval --stage 3 --run restriction
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "agent_lab"
+require "optparse"
+
+opts = { stage: "0", runs: 1, only: nil, model: nil, ctx: 8192, trace: false }
+OptionParser.new do |o|
+  o.on("--stage N", %w[0 1 3], "0 = keywords, 1 = structured output, 3 = multi-tool agent") { |v| opts[:stage] = v }
+  o.on("--model NAME", "ollama model") { |v| opts[:model] = v }
+  o.on("-n", "--runs N", Integer, "times to run each case; model output varies, so a pass rate beats one run") { |v| opts[:runs] = v }
+  o.on("--run REGEXP", "only run cases whose name matches") { |v| opts[:only] = Regexp.new(v) }
+  o.on("--ctx N", Integer, "ollama: context window in tokens") { |v| opts[:ctx] = v }
+  o.on("--trace", "print each step of every case") { opts[:trace] = true }
+end.parse!
+
+include AgentLab # rubocop:disable Style/MixinUsage
+
+trace = opts[:trace] ? Trace.new($stderr) : Trace::OFF
+llm = Ollama::Client.new(model: opts[:model] || Ollama::DEFAULT_MODEL, num_ctx: opts[:ctx])
+at_exit { llm.unload rescue nil } if opts[:stage] != "0" # rubocop:disable Style/RescueModifier
+
+run_once =
+  case opts[:stage]
+  when "0" then -> { Evals.run_requests(Stage0::Interpreter.new, Evals::Cases::REQUESTS, filter: opts[:only]) }
+  when "1"
+    interpreter = Stage1::Interpreter.new(llm, trace: trace)
+    -> { Evals.run_requests(interpreter, Evals::Cases::REQUESTS, filter: opts[:only]) }
+  when "3"
+    jokes = JokeApi::Client.new
+    dads = DadJoke::Client.new
+    new_agent = lambda do |record|
+      Stage3::Agent.new(llm, jokes, dads, trace: trace).tap do |a|
+        a.on_tool = ->(name, args, result) { record.call(Evals::Call.new(name, args, result)) }
+      end
+    end
+    -> { Evals.run_conversations(new_agent, Evals::Cases::CONVERSATIONS, filter: opts[:only]) }
+  end
+
+all = Array.new(opts[:runs]) do |i|
+  puts "── run #{i + 1}/#{opts[:runs]}" if opts[:runs] > 1
+  run_once.call.tap { |results| Evals.report(results) }
+end
+
+if opts[:runs] > 1
+  names, passes = Evals.tally(all)
+  puts "\n── pass rate over #{opts[:runs]} runs"
+  names.each { |n| puts format("%3d/%d  %s", passes[n], opts[:runs], n) }
+end

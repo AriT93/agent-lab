@@ -1,0 +1,24 @@
+source "https://rubygems.org"
+
+ruby ">= 3.1"
+
+# Stages 0-5 use only the standard library (net/http, json, optparse).
+# Only the web UI (stage 7) and stage 3b need gems.
+group :web do
+  gem "sinatra", "~> 4.0"
+  gem "puma"
+  gem "rackup"
+end
+
+# Stage 3b: the same agent in langchainrb, to see what a framework hides.
+group :langchain do
+  gem "langchainrb"
+  gem "faraday" # langchainrb loads it for its Ollama client but does not depend on it
+end
+
+group :test do
+  gem "minitest"
+  gem "rack-test"
+  gem "webmock"
+  gem "rake"
+end

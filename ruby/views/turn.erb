@@ -1,0 +1,3 @@
+<div class="msg user"><%= h @user %></div>
+<% if @error %><div class="msg error">error: <%= h @error %></div><% else %><div class="msg bot"><%= h @reply %></div><% end %>
+<% unless @trace.to_s.empty? %><details class="trace"><summary>trace</summary><pre><%= h @trace %></pre></details><% end %>
