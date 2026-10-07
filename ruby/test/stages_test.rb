@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "langchain" # the 3b tests touch Langchain.logger before the stage autoloads it
 
 class Stage0Test < Minitest::Test
   def test_keywords
