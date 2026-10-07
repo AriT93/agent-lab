@@ -123,3 +123,21 @@ func TestRepeatedJokeIsRefused(t *testing.T) {
 		t.Errorf("second = %s", second)
 	}
 }
+
+// An empty tool input (a random dad joke) used to be replayed to the model as
+// arguments "", which Ollama rejects with 400. It must go back as a JSON object.
+func TestEmptyToolInputIsReplayedAsObject(t *testing.T) {
+	url, seen := scriptedModel(t, toolCall("search_dad_jokes", `{"__arg1":""}`), say("A joke."))
+	jokes, dads := fakeSources(t)
+	a, err := New(Config{BaseURL: url, Model: "fake"}, jokes, dads)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.Respond(context.Background(), "tell me a joke"); err != nil {
+		t.Fatal(err)
+	}
+	second, _ := json.Marshal((*seen)[1]["messages"])
+	if strings.Contains(string(second), `"arguments":""`) {
+		t.Errorf("empty arguments replayed: %s", second)
+	}
+}

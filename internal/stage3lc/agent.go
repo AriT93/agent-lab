@@ -83,15 +83,17 @@ type Agent struct {
 }
 
 func New(cfg Config, jokes *jokeapi.Client, dads *dadjoke.Client) (*Agent, error) {
+	a := &Agent{seen: map[string]bool{}, maxTokens: cfg.MaxTokens}
+	h := &handler{agent: a}
 	llm, err := openai.New(
 		openai.WithBaseURL(cfg.BaseURL),
 		openai.WithToken("ollama"), // required by the client, ignored by Ollama
 		openai.WithModel(cfg.Model),
+		openai.WithCallback(h), // the executor's handler never sees the model calls, only the LLM does
 	)
 	if err != nil {
 		return nil, err
 	}
-	a := &Agent{seen: map[string]bool{}, maxTokens: cfg.MaxTokens}
 	a.mem = memory.NewConversationWindowBuffer(10, memory.WithMemoryKey("chat_history"))
 
 	agent := agents.NewOpenAIFunctionsAgent(legacyMaxTokens{llm},
@@ -101,7 +103,7 @@ func New(cfg Config, jokes *jokeapi.Client, dads *dadjoke.Client) (*Agent, error
 	a.exec = agents.NewExecutor(agent,
 		agents.WithMemory(a.mem),
 		agents.WithMaxIterations(6),
-		agents.WithCallbacksHandler(&handler{agent: a}),
+		agents.WithCallbacksHandler(h),
 	)
 	return a, nil
 }
@@ -128,9 +130,29 @@ func (a *Agent) Respond(ctx context.Context, text string) (string, error) {
 // default max_completion_tokens, which servers that only imitate the OpenAI
 // API may ignore. The option is per call, and the executor has no way to pass
 // llms options through, so the only place to add it is around the model.
+//
+// It also repairs replayed tool calls. The tools take one string, which the
+// functions agent wraps as {"__arg1": "..."} on the way in and unwraps on the
+// way out, so on the next step it replays the bare string as the call's
+// arguments. For search_dad_jokes' "random joke" that is "", which Ollama
+// rejects with 400 "invalid tool call arguments". Re-wrap anything that isn't
+// a JSON object.
 type legacyMaxTokens struct{ llms.Model }
 
 func (m legacyMaxTokens) GenerateContent(ctx context.Context, msgs []llms.MessageContent, opts ...llms.CallOption) (*llms.ContentResponse, error) {
+	for _, msg := range msgs {
+		for i, p := range msg.Parts {
+			if tc, ok := p.(llms.ToolCall); ok && tc.FunctionCall != nil {
+				var obj map[string]any
+				if json.Unmarshal([]byte(tc.FunctionCall.Arguments), &obj) != nil {
+					fc := *tc.FunctionCall
+					fc.Arguments = toJSON(map[string]string{"__arg1": fc.Arguments})
+					tc.FunctionCall = &fc
+					msg.Parts[i] = tc
+				}
+			}
+		}
+	}
 	return m.Model.GenerateContent(ctx, msgs, append(opts, openai.WithLegacyMaxTokensField())...)
 }
 
